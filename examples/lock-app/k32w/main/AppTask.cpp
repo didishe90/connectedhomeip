@@ -20,6 +20,7 @@
 #include "AppTask.h"
 #include "AppEvent.h"
 #include "LEDWidget.h"
+#include "support/ErrorStr.h"
 
 #include <platform/CHIPDeviceLayer.h>
 
@@ -214,7 +215,8 @@ void AppTask::AppTaskMain(void * pvParameter)
 
 void AppTask::ButtonEventHandler(uint8_t pin_no, uint8_t button_action)
 {
-    if ((pin_no != RESET_BUTTON) && (pin_no != LOCK_BUTTON) && (pin_no != OTA_BUTTON))
+    if ((pin_no != RESET_BUTTON) && (pin_no != LOCK_BUTTON) &&
+       (pin_no != JOIN_BUTTON))
     {
         return;
     }
@@ -232,9 +234,9 @@ void AppTask::ButtonEventHandler(uint8_t pin_no, uint8_t button_action)
     {
         button_event.Handler = LockActionEventHandler;
     }
-    else if (pin_no == OTA_BUTTON)
+    else if (pin_no == JOIN_BUTTON)
     {
-        button_event.Handler = OtaHandler;
+        button_event.Handler = JoinHandler;
     }
 
     sAppTask.PostEvent(&button_event);
@@ -271,7 +273,7 @@ void AppTask::HandleKeyboard(void)
             ButtonEventHandler(LOCK_BUTTON, LOCK_BUTTON_PUSH);
             break;
         case gKBD_EventPB3_c:
-            ButtonEventHandler(OTA_BUTTON, OTA_BUTTON_PUSH);
+            ButtonEventHandler(JOIN_BUTTON, JOIN_BUTTON_PUSH);
             break;
         default:
             break;
@@ -398,18 +400,19 @@ void AppTask::LockActionEventHandler(AppEvent * aEvent)
     }
 }
 
-void AppTask::OtaHandler(AppEvent * aEvent)
+void AppTask::JoinHandler(AppEvent * aEvent)
 {
-    if (aEvent->ButtonEvent.PinNo != OTA_BUTTON)
+    if (aEvent->ButtonEvent.PinNo != JOIN_BUTTON)
         return;
 
     if (sAppTask.mFunction != kFunction_NoneSelected)
     {
-        K32W_LOG("Another function is scheduled. Could not initiate Software Update!");
+        K32W_LOG("Another function is scheduled. Could not initiate Thread Join!");
         return;
     }
 
-    // TODO: Add OTA support
+    CHIP_ERROR error = ThreadStackMgr().JoinerStart();
+    K32W_LOG("Thread joiner triggered: %s", chip::ErrorStr(error));
 }
 
 void AppTask::CancelTimer()
