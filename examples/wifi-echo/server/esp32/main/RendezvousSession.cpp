@@ -138,7 +138,7 @@ void RendezvousSession::HandleMessageReceived(Ble::BLEEndPoint * endPoint, Packe
 
         ChipLogProgress(Ble, "RendezvousSession: Receive message: %s", msg);
 
-        if ((bufferLen > 3) && (msg[0] == msg[1]) && (msg[0] == msg[bufferLen - 1]))
+        if ((bufferLen > 3) && (msg[0] == msg[1]) && (msg[0] == msg[bufferLen - 2]))
         {
             // WiFi credentials, of the form ‘::SSID:password:’, where ‘:’ can be any single ASCII character.
             msg[1]      = 0;

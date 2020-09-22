@@ -50,6 +50,12 @@
 #include <support/ErrorStr.h>
 #include <transport/SecureSessionMgr.h>
 
+#include "lwip/err.h"
+#include "lwip/sockets.h"
+#include "lwip/sys.h"
+#include <core/CHIPConfig.h>
+#include <lwip/netdb.h>
+
 using namespace ::chip;
 using namespace ::chip::DeviceLayer;
 
@@ -110,6 +116,92 @@ const char * TAG = "wifi-echo-demo";
 
 static EchoDeviceCallbacks EchoCallbacks;
 RendezvousSession * rendezvousSession = nullptr;
+
+static const char * PAYLOAD = "Message from chip server!";
+
+
+static void task()
+{
+    char rx_buffer[512];
+    int addr_family = 0;
+    int ip_protocol = 0;
+    ESP_LOGE(TAG, "-----------------------------------------Enter task");
+
+    while (1)
+    {
+        
+        struct sockaddr_in server_addr, client_addr;
+
+        memset(&server_addr, 0, sizeof(server_addr));
+        memset(&client_addr, 0, sizeof(client_addr));
+
+        server_addr.sin_addr.s_addr = INADDR_ANY;
+        server_addr.sin_family      = AF_INET;
+        server_addr.sin_port        = htons(23368);
+        
+        addr_family               = AF_INET;
+        ip_protocol               = IPPROTO_IP;
+
+        int sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
+        if (sock < 0)
+        {
+            ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
+            break;
+        }
+
+        if (bind(sock, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+            ESP_LOGE(TAG, "Unable to bind: errno %d", errno);
+            break;
+        }
+
+
+        while (1)
+        {
+            ESP_LOGE(TAG, "-----------------------------------------listening");
+
+            socklen_t socklen = sizeof(client_addr);
+            int len           = recvfrom(sock, rx_buffer, sizeof(rx_buffer) - 1, 0, (struct sockaddr *) &client_addr, &socklen);
+
+            // Error occurred during receiving
+            if (len < 0)
+            {
+                ESP_LOGE(TAG, "recvfrom failed: errno %d", errno);
+                continue;
+            }
+            // Data received
+            else
+            {
+                rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string
+                ESP_LOGI(TAG, "Received %d bytes", len);
+                ESP_LOGI(TAG, "Received from ip: %d", client_addr.sin_addr.s_addr);
+                ESP_LOGI(TAG, "Received from port: %d", client_addr.sin_port);
+
+
+                int err = sendto(sock, PAYLOAD, strlen(PAYLOAD), 0, (struct sockaddr *) &client_addr, sizeof(client_addr));
+                if (err < 0)
+                {
+                    ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
+                    // break;
+                }
+                ESP_LOGI(TAG, "Message sent to client");
+
+
+
+            }
+
+            vTaskDelay(50 / portTICK_PERIOD_MS);
+        }
+
+        if (sock != -1)
+        {
+            ESP_LOGE(TAG, "Shutting down socket and restarting...");
+            shutdown(sock, 0);
+            close(sock);
+        }
+    }
+    vTaskDelete(NULL);
+}
+
 
 namespace {
 
@@ -564,6 +656,8 @@ extern "C" void app_main()
     }
 
 #endif // CONFIG_HAVE_DISPLAY
+
+    task();
 
     // Run the UI Loop
     while (true)

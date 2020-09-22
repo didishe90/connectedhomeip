@@ -1100,6 +1100,8 @@ void BLEManagerImpl::HandleDisconnect(esp_ble_gatts_cb_param_t * param)
         // Force a refresh of the advertising state.
         SetFlag(mFlags, kFlag_AdvertisingRefreshNeeded);
         ClearFlag(mFlags, kFlag_AdvertisingConfigured);
+        ClearFlag(mFlags, kFlag_AdvertisingEnabled);
+        ClearFlag(mFlags, kFlag_AdvertisingRefreshNeeded);
         PlatformMgr().ScheduleWork(DriveBLEState, 0);
     }
 }
